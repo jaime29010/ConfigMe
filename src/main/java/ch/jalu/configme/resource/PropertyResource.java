@@ -4,6 +4,7 @@ import ch.jalu.configme.configurationdata.ConfigurationData;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Property resource; provides and exports properties.
@@ -67,6 +68,15 @@ public interface PropertyResource {
      */
     @Nullable
     List<?> getList(String path);
+
+    /**
+     * Returns the value of the given path as a map if available
+     *
+     * @param path the path to retrieve the map for
+     * @return the value as a map, or null if not applicable or unavailable
+     */
+    @Nullable
+    Map<?, ?> getMap(String path);
 
     /**
      * Returns whether a value is present for the given path. When applicable,

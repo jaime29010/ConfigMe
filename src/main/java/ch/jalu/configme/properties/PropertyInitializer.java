@@ -1,6 +1,7 @@
 package ch.jalu.configme.properties;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -84,6 +85,19 @@ public class PropertyInitializer {
      */
     public static Property<List<String>> newLowercaseListProperty(String path, String... defaultValues) {
         return new LowercaseStringListProperty(path, defaultValues);
+    }
+
+    /**
+     * Creates a new map property with string keys.
+     *
+     * @param clazz the map's value type
+     * @param path the property's path
+     * @param defaultMap the default map
+     * @param <V> the value type
+     * @return the created map property
+     */
+    public static <V> Property<Map<String, V>> newStringKeyMapProperty(Class<V> clazz, String path, Map<String, V> defaultMap) {
+        return new StringKeyMapProperty<>(clazz, path, defaultMap);
     }
 
     /**

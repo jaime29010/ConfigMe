@@ -3,10 +3,7 @@ package ch.jalu.configme.resource;
 import ch.jalu.configme.beanmapper.leafproperties.LeafPropertiesGenerator;
 import ch.jalu.configme.configurationdata.ConfigurationData;
 import ch.jalu.configme.exception.ConfigMeException;
-import ch.jalu.configme.properties.BeanProperty;
-import ch.jalu.configme.properties.OptionalProperty;
-import ch.jalu.configme.properties.Property;
-import ch.jalu.configme.properties.StringListProperty;
+import ch.jalu.configme.properties.*;
 import ch.jalu.configme.resource.PropertyPathTraverser.PathElement;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
@@ -16,10 +13,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -92,6 +86,11 @@ public class YamlFileResource implements PropertyResource {
     @Override
     public List<?> getList(String path) {
         return reader.getTypedObject(path, List.class);
+    }
+
+    @Override
+    public Map<?, ?> getMap(String path) {
+        return reader.getTypedObject(path, Map.class);
     }
 
     @Override
@@ -172,6 +171,11 @@ public class YamlFileResource implements PropertyResource {
                 if (!entry.getValue(this).equals(Optional.empty())) {
                     result.add(((OptionalProperty) entry).getBaseProperty());
                 }
+            } else if (entry instanceof StringKeyMapProperty) {
+                StringKeyMapProperty property = (StringKeyMapProperty) entry;
+                BeanProperty beanProperty = new BeanProperty(Map.class, property.getPath(), entry.getDefaultValue());
+                result.addAll(leafPropertiesGenerator.generate(beanProperty,
+                    beanProperty.getValue(this)));
             } else {
                 result.add(entry);
             }
@@ -205,6 +209,15 @@ public class YamlFileResource implements PropertyResource {
             } else {
                 return "\n- " + collection.stream().map(v -> transformValue(null, v))
                     .collect(Collectors.joining("- "));
+            }
+        }
+
+        if (value instanceof Map) {
+            Map<?, ?> map = (Map<?, ?>) value;
+            if (map.isEmpty()) {
+                return "{}";
+            } else if (property instanceof StringKeyMapProperty) {
+                return "\n" + getSimpleYaml().dump(value);
             }
         }
 

@@ -6,12 +6,7 @@ import ch.jalu.configme.properties.BeanProperty;
 import ch.jalu.configme.properties.Property;
 
 import javax.annotation.Nullable;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 /**
  * Generates {@link Property} objects for all "leaf" values of a bean for the export of beans by
@@ -20,16 +15,16 @@ import java.util.Objects;
 public class LeafPropertiesGenerator {
 
     /**
-     * Generates a list of regular property objects for the given bean's data.
+     * Generates a list of regular property objects for the given property's data
      *
-     * @param beanProperty the bean property
+     * @param beanProperty the property
      * @param value the value of the bean property
      * @param <B> the bean type
      * @return list of all properties necessary to export the bean
      */
     public <B> List<Property<?>> generate(BeanProperty<B> beanProperty, B value) {
         return new EntryBuilder(beanProperty)
-            .collectPropertiesFromBean(value, beanProperty.getPath());
+            .collectPropertyEntries(value, beanProperty.getPath());
     }
 
     protected static final class EntryBuilder {
@@ -66,27 +61,35 @@ public class LeafPropertiesGenerator {
          *
          * @param value the value to process
          * @param path the path of the value in the config structure
+         * @return list of all properties necessary to export the object
          */
-        protected void collectPropertyEntries(Object value, String path) {
-            Property<?> property = createConstantProperty(value, path);
-            if (property != null) {
-                properties.add(property);
-            } else if (value instanceof Collection<?>) {
-                handleCollection((Collection<?>) value, path);
-            } else if (value instanceof Map<?, ?>) {
-                if (((Map) value).isEmpty()) {
-                    properties.add(new ConstantValueProperty<>(path, Collections.emptyMap()));
-                } else {
-                    for (Map.Entry<String, ?> entry : ((Map<String, ?>) value).entrySet()) {
-                        collectPropertyEntries(entry.getValue(), path + "." + entry.getKey());
+        @SuppressWarnings("unchecked")
+        protected List<Property<?>> collectPropertyEntries(Object value, String path) {
+            if (value != null) {
+                Property<?> constant = createConstantProperty(value, path);
+                if (constant != null) {
+                    //Handle regular properties
+                    properties.add(constant);
+                } else if (value instanceof Collection<?>) {
+                    //Handle collections
+                    properties.add(new ConstantValueProperty<>(path, value));
+                } else if (value instanceof Map<?, ?>) {
+                    //Handle maps
+                    Map<?, ?> map = (Map<?, ?>) value;
+                    if (map.isEmpty()) {
+                        properties.add(new ConstantValueProperty<>(path, Collections.emptyMap()));
+                    } else {
+                        map.forEach((k, v) -> collectPropertyEntries(v, path + "." + k));
                     }
+                } else if (value instanceof Optional) {
+                    //Handle optional values
+                    ((Optional) value).ifPresent(o -> collectPropertyEntries(o, path));
+                } else {
+                    //Handle beans
+                    collectPropertiesFromBean(value, path);
                 }
-            } else {
-                Objects.requireNonNull(value);
-                // At this point it can only be a bean; the bean method checks that the class is a bean
-                // and throws an exception otherwise, so we can just delegate the value to that method
-                collectPropertiesFromBean(value, path);
             }
+            return properties;
         }
 
         @Nullable
@@ -96,16 +99,6 @@ public class LeafPropertiesGenerator {
                 return new ConstantValueProperty<>(path, value);
             }
             return null;
-        }
-
-        /**
-         * Handles a value that is of {@link Collection} type.
-         *
-         * @param value the collection
-         * @param path the path of the collection in the config structure
-         */
-        protected void handleCollection(Collection<?> value, String path) {
-            properties.add(new ConstantValueProperty<>(path, value));
         }
     }
 }
